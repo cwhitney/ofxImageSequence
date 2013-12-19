@@ -29,15 +29,15 @@
  *
  *  ofxImageSequence is a class for easily loading a series of image files
  *  and accessing them like you would frames of a movie.
- *  
+ *
  *  This class loads only textures to the graphics card and does not store pixel data in memory. This helps with
  *  fast, random access drawing of seuqences
- *  
+ *
  *  Why would you use this instead of a movie file? A few reasons,
  *  If you want truly random frame access with no lag on large images, ofxImageSequence allows it
  *  If you need a movie with alpha channel the only readily available codec is Animation (PNG) which is slow at large resolutions, so this class can help with that
  *  If you want to easily access frames based on percents this class makes that easy
- *  
+ *
  */
 
 #include "ofxImageSequence.h"
@@ -52,8 +52,7 @@ ofxImageSequence::ofxImageSequence()
 	currentFrame = 0;
 }
 
-ofxImageSequence::~ofxImageSequence()
-{
+ofxImageSequence::~ofxImageSequence() {
 	if(loaded){
 		unloadSequence();
 	}
@@ -77,24 +76,24 @@ void ofxImageSequence::loadSequence(string prefix, string filetype,  int startDi
 	stringstream format;
 	filenames.reserve(endDigit - startDigit+1);
 	sequence.reserve(endDigit - startDigit+1);
-	
+
 	if(numDigits != 0){
 		format <<prefix<<"%0"<<numDigits<<"d."<<filetype;
 	} else{
-		format <<prefix<<"%d."<<filetype; 
+		format <<prefix<<"%d."<<filetype;
 	}
-	
+
 	for(int i = startDigit; i <= endDigit; i++){
 		sprintf(imagename, format.str().c_str(), i);
 		filenames.push_back(new string(imagename));
 		sequence.push_back(NULL);
 	}
-		
+
 	loaded = true;
-	
+
 	lastFrameLoaded = -1;
 	loadFrame(0);
-	
+
 	width  = sequence[0]->getWidth();
 	height = sequence[0]->getHeight();
 }
@@ -111,14 +110,41 @@ void ofxImageSequence::loadSequence(string _folder){
             sequence.push_back(NULL);
         }
     } else ofLog(OF_LOG_ERROR, "Could not find folder " + _folder);
-    
+
     loaded = true;
-	
+
 	lastFrameLoaded = -1;
 	loadFrame(0);
-	
+
 	width  = sequence[0]->getWidth();
 	height = sequence[0]->getHeight();
+}
+
+void ofxImageSequence::loadSequence( vector<ofImage*> imageList ){
+    for(int i = 0; i < imageList.size(); i++){
+		sequence.push_back( new ofTexture() );
+
+		if( imageList[i] == NULL ){
+			ofLog(OF_LOG_ERROR, "ofxImageSequence -- Null image at index %d", i);
+			return;
+		}
+
+		if(scale != 1.0){
+			imageList[i]->resize(int(imageList[i]->getWidth()*scale), int(imageList[i]->getHeight()*scale));
+		}
+
+		sequence[i]->allocate( imageList[i]->getWidth(), imageList[i]->getHeight(), imageTypeToGLType(imageList[i]->type) );
+		sequence[i]->loadData( imageList[i]->getPixels(), imageList[i]->getWidth(), imageList[i]->getHeight(), imageTypeToGLType(imageList[i]->type) );
+		if(nonDefaultFiltersUsed){
+			sequence[i]->setTextureMinMagFilter(minFilter, magFilter);
+		}
+	}
+
+    loaded = true;
+    lastFrameLoaded = imageList.size() - 1;
+
+    width = imageList[0]->getWidth();
+    height = imageList[0]->getHeight();
 }
 
 void ofxImageSequence::preloadAllFrames()
@@ -127,7 +153,7 @@ void ofxImageSequence::preloadAllFrames()
 		ofLog(OF_LOG_ERROR, "ofxImageSequence - Calling preloadAllFrames on unitialized image sequence.");
 		return;
 	}
-	
+
 	loadFrame(getTotalFrames()-1);
 }
 
@@ -144,18 +170,18 @@ void ofxImageSequence::loadFrame(int imageIndex)
 			ofLog(OF_LOG_ERROR, "ofxImageSequence -- failed to load image %s. returning", filenames[i]->c_str());
 			return;
 		}
-		
+
 		if(scale != 1.0){
 			loader.resize(int(loader.getWidth()*scale), int(loader.getHeight()*scale));
 		}
-		
-		sequence[i]->allocate( loader.getWidth(), loader.getHeight(), imageTypeToGLType(loader.type) );				
+
+		sequence[i]->allocate( loader.getWidth(), loader.getHeight(), imageTypeToGLType(loader.type) );
 		sequence[i]->loadData( loader.getPixels(), loader.getWidth(), loader.getHeight(), imageTypeToGLType(loader.type) );
 		if(nonDefaultFiltersUsed){
 			sequence[i]->setTextureMinMagFilter(minFilter, magFilter);
 		}
 	}
-	
+
 	lastFrameLoaded = imageIndex;
 }
 
@@ -182,10 +208,10 @@ void ofxImageSequence::unloadSequence()
 		}
 		delete filenames[i];
 	}
-	
+
 	sequence.clear();
 	filenames.clear();
-	
+
 	loaded = false;
 	width = 0;
 	height = 0;
@@ -205,7 +231,7 @@ ofTexture* ofxImageSequence::getFrameAtPercent(float percent)
 int ofxImageSequence::getFrameIndexAtPercent(float percent)
 {
     if (percent < 0.0 || percent > 1.0) percent -= floor(percent);
-	
+
 	return MIN((int)(percent*sequence.size()), sequence.size()-1);
 }
 
@@ -231,13 +257,13 @@ void ofxImageSequence::setFrame(int index)
 		ofLog(OF_LOG_ERROR, "ofxImageSequence - Asking for negative index.");
 		return;
 	}
-	
+
 	index %= getTotalFrames();
-	
+
 	if(sequence[index] == NULL){
 		loadFrame(index);
 	}
-	
+
 	currentFrame = index;
 }
 
@@ -245,12 +271,12 @@ void ofxImageSequence::setFrameForTime(float time)
 {
 	float totalTime = sequence.size() / frameRate;
 	float percent = time / totalTime;
-	return setFrameAtPercent(percent);	
+	return setFrameAtPercent(percent);
 }
 
 void ofxImageSequence::setFrameAtPercent(float percent)
 {
-	setFrame(getFrameIndexAtPercent(percent));	
+	setFrame(getFrameIndexAtPercent(percent));
 }
 
 ofTexture& ofxImageSequence::getTextureReference()
